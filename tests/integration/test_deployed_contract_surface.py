@@ -5,7 +5,7 @@ from gltest.assertions import tx_execution_failed, tx_execution_succeeded
 
 
 CONTRACT = "BondedClaimSlashingVault"
-DEPLOYED_ADDRESS = "0x294F85B407df89A18ec94D6bE2ce314ce16dC606"
+DEPLOYED_ADDRESS = "0x9e32D760c5940D259ffF8a4e257C890279767451"
 ZERO = "0x0000000000000000000000000000000000000000"
 GEN = 10**18
 
@@ -19,8 +19,8 @@ def mock_context(verdict="UPHELD", ok=True, now="2026-07-27T14:00:00Z"):
                     {
                         "ok": ok,
                         "verdict": verdict,
-                        "reason": "mocked deployed-CA claim verdict",
-                        "evidence_summary": "mocked deployed-CA evidence summary",
+                        "reason": "mocked deployed-CA verdict from contract-fetched URL evidence",
+                        "evidence_summary": "mocked deployed-CA fetched evidence summary",
                         "weaknesses": "",
                         "safe_error": "",
                     }
@@ -33,8 +33,8 @@ def mock_context(verdict="UPHELD", ok=True, now="2026-07-27T14:00:00Z"):
 
 def register_args(callback=ZERO):
     return [
-        "Provider beta has maintained audited reserve coverage for the current reporting window.",
-        "Evidence must include dated audit, registry, or public attestation proof for provider beta.",
+        "The public page at example.com identifies itself as Example Domain.",
+        "Evidence must be fetched contract-side from a public URL and judged from the fetched source content.",
         3600,
         7200,
         7000,
@@ -43,15 +43,15 @@ def register_args(callback=ZERO):
 
 
 def challenge_args():
-    return ["The provider beta reserve claim appears false or expired based on public evidence."]
+    return ["The page may not identify itself as Example Domain unless the public URL is fetched."]
 
 
 def evidence_args(claim_id):
     return [
         claim_id,
-        "TEXT",
-        "Public attestation says provider beta reserve status is current for the review window.",
-        "Deployed CA integration evidence.",
+        "WEB_TEXT",
+        "https://example.com",
+        "Deployed CA integration URL evidence.",
     ]
 
 
@@ -136,8 +136,8 @@ def test_deployed_contract_write_surface(default_account, accounts):
 
     assert contract.claim_status(args=[base]).call() == "RESOLVED"
     assert contract.claim_verdict(args=[base]).call() == "UPHELD"
-    assert json.loads(contract.get_evidence(args=[base, 0]).call())["kind"] == "TEXT"
-    assert "audited reserve" in json.loads(contract.get_claim_terms(args=[base]).call())["claim_text"]
+    assert json.loads(contract.get_evidence(args=[base, 0]).call())["kind"] == "WEB_TEXT"
+    assert "Example Domain" in json.loads(contract.get_claim_terms(args=[base]).call())["claim_text"]
     assert json.loads(contract.resolution_of(args=[base]).call())["verdict"] == "UPHELD"
     stats = json.loads(contract.stats(args=[]).call())
     assert int(stats["next_claim_id"]) >= base + 4

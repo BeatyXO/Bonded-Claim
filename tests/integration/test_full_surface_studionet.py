@@ -18,8 +18,8 @@ def mock_context(verdict="UPHELD", ok=True, now="2026-07-27T14:00:00Z"):
                     {
                         "ok": ok,
                         "verdict": verdict,
-                        "reason": "mocked StudioNet claim verdict",
-                        "evidence_summary": "mocked claim evidence summary",
+                        "reason": "mocked StudioNet verdict from contract-fetched URL evidence",
+                        "evidence_summary": "mocked fetched evidence summary",
                         "weaknesses": "",
                         "safe_error": "",
                     }
@@ -32,8 +32,8 @@ def mock_context(verdict="UPHELD", ok=True, now="2026-07-27T14:00:00Z"):
 
 def register_args(callback=ZERO):
     return [
-        "Provider alpha has maintained SOC2 Type II coverage for the current review window.",
-        "Evidence must include dated audit, registry, or public attestation proof for provider alpha.",
+        "The public page at example.com identifies itself as Example Domain.",
+        "Evidence must be fetched contract-side from a public URL and judged from the fetched source content.",
         3600,
         7200,
         7000,
@@ -42,15 +42,15 @@ def register_args(callback=ZERO):
 
 
 def challenge_args():
-    return ["The provider alpha claim appears false or expired based on public evidence."]
+    return ["The page may not identify itself as Example Domain unless the public URL is fetched."]
 
 
 def evidence_args(claim_id):
     return [
         claim_id,
-        "TEXT",
-        "Public registry entry says provider alpha status is current for the review window.",
-        "StudioNet integration evidence.",
+        "WEB_TEXT",
+        "https://example.com",
+        "StudioNet integration URL evidence.",
     ]
 
 
@@ -127,8 +127,8 @@ def test_full_surface_on_studionet(default_account, accounts):
 
     assert contract.claim_status(args=[1]).call() == "RESOLVED"
     assert contract.claim_verdict(args=[1]).call() == "UPHELD"
-    assert json.loads(contract.get_evidence(args=[1, 0]).call())["kind"] == "TEXT"
-    assert "SOC2" in json.loads(contract.get_claim_terms(args=[1]).call())["claim_text"]
+    assert json.loads(contract.get_evidence(args=[1, 0]).call())["kind"] == "WEB_TEXT"
+    assert "Example Domain" in json.loads(contract.get_claim_terms(args=[1]).call())["claim_text"]
     assert json.loads(contract.resolution_of(args=[1]).call())["verdict"] == "UPHELD"
     stats = json.loads(contract.stats(args=[]).call())
     assert int(stats["next_claim_id"]) >= 5

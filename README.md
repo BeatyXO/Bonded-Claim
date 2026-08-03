@@ -6,23 +6,37 @@ This is contract-only. No frontend belongs in this Intelligent Contract submissi
 
 ## Deployed Contract
 
-- StudioNet contract: `0x294F85B407df89A18ec94D6bE2ce314ce16dC606`
-- Deployment tx: `0xad81446a1831fe252aac3c1db00639779566cd554ba2ee050a352e0b741c5186`
-- Receipt status: `FINALIZED`
+- StudioNet contract: `0x9e32D760c5940D259ffF8a4e257C890279767451`
+- Deployment tx: `0xc500b3c275b6387f97dbb3800b9966c166ade332b5139e8fe61c00d9510fccb2`
+- Receipt status: `ACCEPTED`
+- Deployment result: `MAJORITY_AGREE`
 - Consensus: 5/5 validators agreed
 - Constructor: zero treasury address was supplied, so the contract set the deployer as treasury.
 
-One earlier deployment attempt used the wrong CLI argument shape and produced `0x00E6875495a0e80382a1242F47b70178298eE3a0`; that address is not found by StudioNet and is not the submitted contract.
+This is the hardened resubmission deployment. The old rejected deployment is not the submitted contract.
 
 ## What It Does
 
-Claimants register claims with a native GEN bond, a verification policy, a challenge window, a resolution window, a slashing percentage, and an optional callback contract. A different account can bond a challenge. Claim parties can submit bounded evidence. Validators then judge whether the evidence upholds, refutes, or cannot resolve the claim under the policy. The contract normalizes that verdict and deterministically settles funds.
+Claimants register claims with a native GEN bond, a verification policy, a challenge window, a resolution window, a slashing percentage, and an optional callback contract. A different account can bond a challenge. Claim parties can submit bounded evidence. Validators then judge whether independently acquired evidence upholds, refutes, or cannot resolve the claim under the policy. The contract normalizes that verdict and deterministically settles funds.
 
 This is designed as a reusable primitive for reputation systems, registries, insurance protocols, curation markets, compliance lists, agent marketplaces, and other systems that need claim truthfulness backed by slashable economic pressure.
 
+## Contract-Side Evidence Acquisition
+
+The hardened `resolve_challenge` flow now fetches public source material inside the nondeterministic execution path before validator adjudication:
+
+- `WEB_TEXT`, `WEB_SCREENSHOT`, and `IMAGE_URL` evidence are treated as public URL evidence.
+- During `resolve_challenge`, each public URL is read with `gl.nondet.web.render`.
+- The fetched material is capped to a compact `contract_fetched_excerpt`.
+- Validators receive `source_fetch_status`: `FETCHED`, `UNREADABLE`, or `NOT_REQUESTED`.
+- Failed external reads become `UNREADABLE` and cannot be used as proof.
+- Plain `TEXT` remains party-supplied context and is not independent source proof by itself.
+
+This addresses the original rejection directly: the vault no longer pays or slashes from unread URL strings.
+
 ## Why GenLayer Is Used
 
-The non-deterministic part is the evidence judgement: validators review claim text, verification policy, challenge text, and submitted evidence. The deterministic part is everything economic and stateful: bond accounting, challenge eligibility, evidence caps, deadline checks, verdict normalization, slashing math, refunds, rewards, and callback eligibility.
+The nondeterministic part is evidence acquisition and judgement: validators review claim text, verification policy, challenge text, and contract-fetched source content. The deterministic part is everything economic and stateful: bond accounting, challenge eligibility, evidence caps, deadline checks, verdict normalization, slashing math, refunds, rewards, and callback eligibility.
 
 Without GenLayer, a registry admin, oracle operator, backend, or multisig must decide if a claim was false. Here the judgement is consensus-produced and the result directly gates contract state and GEN movement.
 
@@ -53,12 +67,24 @@ View methods:
 
 - `genvm-lint check contracts\bonded_claim_slashing_vault.py --json`: passed, 15 methods, 8 writes, 7 views
 - `genvm-lint check examples\claim_registry_consumer.py --json`: passed, 3 methods
-- `pytest tests/direct/ -q`: `31 passed`
-- `gltest tests/integration/test_full_surface_studionet.py -v -s --network studionet`: `1 passed`
-- `gltest tests/integration/test_deployed_contract_surface.py -v -s --network studionet`: `1 passed`
-- `genlayer.cmd schema 0x294F85B407df89A18ec94D6bE2ce314ce16dC606`: retrieved successfully
-- `genlayer.cmd receipt 0xad81446a1831fe252aac3c1db00639779566cd554ba2ee050a352e0b741c5186`: finalized
-- `genlayer.cmd call 0x294F85B407df89A18ec94D6bE2ce314ce16dC606 stats`: returned current deployed stats after write testing
+- `pytest tests/direct/ -q`: `33 passed`
+- `gltest tests/integration/test_deployed_contract_surface.py -v -s --network studionet`: `1 passed` against the hardened CA
+- `genlayer.cmd call 0x9e32D760c5940D259ffF8a4e257C890279767451 stats`: returned current deployed stats after write testing
+
+The exact deployed-address test wrote against `0x9e32D760c5940D259ffF8a4e257C890279767451` and exercised:
+
+- successful claim registration with native GEN value
+- successful challenge from a different account with challenge bond
+- successful `WEB_TEXT` evidence submission
+- successful consensus resolution from contract-side URL evidence
+- expected callback failure when no callback is configured
+- successful unchallenged withdrawal
+- successful unchallenged cancellation
+- expected invalid evidence failure
+- successful unresolved timeout settlement
+- reads from all view methods
+
+The fresh full-surface StudioNet test deployed and reached the nondeterministic resolve stage, but one RPC polling request to `studio.genlayer.com` timed out while waiting for the resolve receipt. The exact deployed-address test completed successfully afterward and is the measured proof for this submitted CA.
 
 Current deployed stats after the exact-address write test:
 
@@ -74,7 +100,7 @@ Current deployed stats after the exact-address write test:
   "total_returned": "4400000000000000000",
   "total_challenger_rewards": "0",
   "balance": "0",
-  "treasury": "0x8b998319628DC04e83a3116e74394afa34aA98a3"
+  "treasury": "0x9dbe27C8e1884AD3a7Be2FC606dFb40a9eEb1dfE"
 }
 ```
 
@@ -93,7 +119,6 @@ Current deployed stats after the exact-address write test:
 genvm-lint check 'contracts\bonded_claim_slashing_vault.py' --json
 genvm-lint check 'examples\claim_registry_consumer.py' --json
 pytest tests/direct/ -q
-gltest tests/integration/test_full_surface_studionet.py -v -s --network studionet
 gltest tests/integration/test_deployed_contract_surface.py -v -s --network studionet
 ```
 
@@ -105,4 +130,4 @@ genlayer.cmd deploy --contract 'contracts\bonded_claim_slashing_vault.py' --args
 
 ## Limits
 
-The current implementation stores evidence text or URIs and asks validators to judge the evidence bundle. It is already useful as a bonded claim primitive, but a later hardening pass can add contract-side web fetching/rendering per evidence kind where an importer needs stronger source acquisition guarantees.
+URL fetching is intentionally conservative: public HTTP(S) evidence must be available to GenLayer's renderer, fetched excerpts are capped, and failed reads are treated as `UNREADABLE` rather than proof. The vault does not authenticate private, paywalled, login-gated, or cryptographically signed documents by itself. Importers should write verification policies that name acceptable public source classes for their domain.

@@ -2,29 +2,27 @@
 
 ## Summary
 
-Bonded Claim Slashing Vault is a standalone GenLayer Intelligent Contract primitive for staking GEN behind externally verifiable claims. A claimant bonds a claim, a separate challenger can bond a dispute, both sides can submit evidence, and validator consensus resolves whether the claim is upheld, refuted, or not resolvable under the claim's verification policy. Deterministic contract code then releases, refunds, rewards, or slashes funds.
+Bonded Claim Slashing Vault is a standalone GenLayer Intelligent Contract primitive for staking GEN behind externally verifiable claims. A claimant bonds a claim, a separate challenger can bond a dispute, both sides can submit bounded evidence, and validator consensus resolves whether the claim is upheld, refuted, or not resolvable under the claim's verification policy. Deterministic contract code then releases, refunds, rewards, or slashes funds.
 
-This is meant for importers such as reputation registries, insurance protocols, compliance lists, curation markets, agent marketplaces, grant programs, and any protocol that wants public claims backed by economic accountability.
+This hardened resubmission adds contract-side acquisition of public source material inside `resolve_challenge`. Public URL evidence is fetched before validator adjudication, so settlement no longer depends on party-supplied text or unread URL strings.
 
 ## StudioNet Deployment
 
-- Contract address: `0x294F85B407df89A18ec94D6bE2ce314ce16dC606`
-- Deployment transaction: `0xad81446a1831fe252aac3c1db00639779566cd554ba2ee050a352e0b741c5186`
-- Receipt status: `FINALIZED`
+- Contract address: `0x9e32D760c5940D259ffF8a4e257C890279767451`
+- Deployment transaction: `0xc500b3c275b6387f97dbb3800b9966c166ade332b5139e8fe61c00d9510fccb2`
+- Receipt status: `ACCEPTED`
 - Deployment result: `MAJORITY_AGREE`
 - Validator votes: 5 agree, 0 disagree
 
-An earlier deployment attempt used a JSON-array string for `--args`, which StudioNet interpreted as one string argument. That failed constructor execution and produced an unusable address: `0x00E6875495a0e80382a1242F47b70178298eE3a0`. It is not part of the submission.
-
 ## GenLayer Consensus Use
 
-The contract uses consensus where deterministic code cannot decide the outcome: whether heterogeneous evidence supports or refutes a claim under a natural-language verification policy. Validators receive a bounded prompt containing:
+The contract uses consensus where deterministic code cannot decide the outcome: whether independently acquired evidence supports or refutes a claim under a natural-language verification policy. During `resolve_challenge`, the contract builds an enriched evidence bundle:
 
-- claim text
-- verification policy
-- challenge text
-- evidence bundle
-- strict JSON verdict envelope
+- `WEB_TEXT`, `WEB_SCREENSHOT`, and `IMAGE_URL` evidence are fetched with `gl.nondet.web.render`.
+- fetched source content is capped as `contract_fetched_excerpt`
+- failed public source reads are marked `UNREADABLE`
+- party text is retained as context but not treated as independent proof
+- validators classify the fetched material into one strict verdict envelope
 
 Accepted verdicts are `UPHELD`, `REFUTED`, `INCONCLUSIVE`, `EXTERNAL_FAILURE`, `STALE_EVIDENCE`, and `OUT_OF_SCOPE`. The contract normalizes malformed or unsafe validator output into safe non-slashing outcomes.
 
@@ -38,6 +36,7 @@ The contract deterministically handles:
 - challenge windows
 - resolution deadlines
 - bounded evidence submission
+- fetch-status handling for external evidence
 - verdict normalization
 - slashing and payout math
 - double-settlement protection
@@ -96,14 +95,7 @@ Direct test suite:
 
 ```text
 pytest tests/direct/ -q
-31 passed
-```
-
-StudioNet full-surface test on a fresh deployed instance:
-
-```text
-gltest tests/integration/test_full_surface_studionet.py -v -s --network studionet
-1 passed
+33 passed
 ```
 
 StudioNet exact deployed-address test:
@@ -113,18 +105,20 @@ gltest tests/integration/test_deployed_contract_surface.py -v -s --network studi
 1 passed
 ```
 
-The exact deployed-address test wrote against `0x294F85B407df89A18ec94D6bE2ce314ce16dC606` and exercised:
+The exact deployed-address test wrote against `0x9e32D760c5940D259ffF8a4e257C890279767451` and exercised:
 
-- successful claim registration
-- successful challenge from a different account
-- successful evidence submission
-- successful consensus resolution
+- successful claim registration with native GEN value
+- successful challenge from a different account with challenge bond
+- successful `WEB_TEXT` evidence submission using `https://example.com`
+- successful consensus resolution from contract-side URL evidence
 - expected callback failure when no callback is configured
 - successful unchallenged withdrawal
 - successful unchallenged cancellation
 - expected invalid evidence failure
 - successful unresolved timeout settlement
 - reads from all view methods
+
+Fresh full-surface StudioNet test note: the fresh deployment path reached `resolve_challenge`, then one RPC polling request to `studio.genlayer.com` timed out while waiting for the transaction receipt. The exact deployed-address StudioNet test passed afterward and is the measured write-surface proof for this submitted CA.
 
 ## Current Deployed Stats
 
@@ -140,14 +134,14 @@ The exact deployed-address test wrote against `0x294F85B407df89A18ec94D6bE2ce314
   "total_returned": "4400000000000000000",
   "total_challenger_rewards": "0",
   "balance": "0",
-  "treasury": "0x8b998319628DC04e83a3116e74394afa34aA98a3"
+  "treasury": "0x9dbe27C8e1884AD3a7Be2FC606dFb40a9eEb1dfE"
 }
 ```
 
 ## Why It Is Reusable
 
-Importers do not need to copy evidence review, slashing, challenge, or payout logic. A registry or insurance protocol can register claims, query `claim_status` and `claim_verdict`, or receive `on_claim_resolved(...)` callbacks. The primitive is claim-generic and can support provider attestations, credential claims, reserve claims, compliance claims, safety claims, uptime claims, grant eligibility claims, and listing-quality claims.
+Importers do not need to copy evidence review, source fetching, slashing, challenge, or payout logic. A registry or insurance protocol can register claims, query `claim_status` and `claim_verdict`, or receive `on_claim_resolved(...)` callbacks. The primitive is claim-generic and can support provider attestations, credential claims, reserve claims, compliance claims, safety claims, uptime claims, grant eligibility claims, and listing-quality claims.
 
 ## Honest Limit
 
-This version stores submitted evidence text/URIs and lets validators judge that evidence bundle. It does not yet perform contract-side web fetching for every URI. The settlement mechanics, state machine, and exact deployed write surface are tested. A future hardening pass can add per-kind web acquisition without changing the external primitive.
+Public URL fetching depends on source availability through GenLayer's renderer. Failed reads become `UNREADABLE` and cannot cause payout or slashing. The vault does not authenticate private, paywalled, login-gated, or cryptographically signed documents by itself; importers should write policies that define acceptable public evidence sources for their claim domain.

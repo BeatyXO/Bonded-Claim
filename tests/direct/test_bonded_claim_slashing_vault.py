@@ -47,6 +47,16 @@ def submit_default(contract, direct_vm, claim_id, sender):
     )
 
 
+def submit_web_evidence(contract, direct_vm, claim_id, sender, url="https://registry.example/provider-alpha"):
+    direct_vm.sender = sender
+    contract.submit_evidence(
+        claim_id,
+        "WEB_TEXT",
+        url,
+        "Contract must fetch this public source before judgement.",
+    )
+
+
 def mock_verdict(direct_vm, verdict, ok=True, reason="mocked verdict"):
     direct_vm.clear_mocks()
     direct_vm.mock_llm(
@@ -198,6 +208,62 @@ def test_resolve_refuted_slashes_claimant_to_challenger_and_treasury(direct_vm, 
     assert rec["verdict"] == "REFUTED"
     assert rec["challenger_payout"] == str(GEN * 7000 // 10000 + GEN // 5)
     assert rec["treasury_payout"] == str(GEN * 3000 // 10000)
+
+
+def test_web_evidence_is_fetched_inside_resolution(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract = deploy(direct_deploy, direct_vm, direct_alice)
+    claim_id = register_default(contract, direct_vm, direct_alice)
+    challenge_default(contract, direct_vm, claim_id, direct_bob)
+    submit_web_evidence(contract, direct_vm, claim_id, direct_alice)
+    direct_vm.clear_mocks()
+    direct_vm.mock_web(
+        r"https://registry\.example/provider-alpha",
+        {"status": 200, "body": "Provider alpha SOC2 Type II coverage is current for this review window."},
+    )
+    direct_vm.mock_llm(
+        r".*contract_fetched_excerpt.*SOC2 Type II coverage is current.*",
+        json.dumps(
+            {
+                "ok": True,
+                "verdict": "UPHELD",
+                "reason": "contract-fetched registry content supports the claim",
+                "evidence_summary": "Fetched registry evidence confirms current SOC2 coverage.",
+                "weaknesses": "",
+                "safe_error": "",
+            }
+        ),
+    )
+    contract.resolve_challenge(claim_id)
+    rec = claim(contract, claim_id)
+    assert rec["verdict"] == "UPHELD"
+    assert rec["settled"] is True
+
+
+def test_unreadable_web_evidence_does_not_slash_or_release(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract = deploy(direct_deploy, direct_vm, direct_alice)
+    claim_id = register_default(contract, direct_vm, direct_alice)
+    challenge_default(contract, direct_vm, claim_id, direct_bob)
+    submit_web_evidence(contract, direct_vm, claim_id, direct_bob, "https://registry.example/missing")
+    direct_vm.clear_mocks()
+    direct_vm.mock_llm(
+        r".*source_fetch_status.*UNREADABLE.*",
+        json.dumps(
+            {
+                "ok": False,
+                "verdict": "EXTERNAL_FAILURE",
+                "reason": "required public source could not be fetched",
+                "evidence_summary": "No readable external source content was available.",
+                "weaknesses": "URL evidence was unreadable.",
+                "safe_error": "EXTERNAL",
+            }
+        ),
+    )
+    contract.resolve_challenge(claim_id)
+    rec = claim(contract, claim_id)
+    assert rec["settled"] is False
+    assert rec["verdict"] == "EXTERNAL_FAILURE"
+    assert rec["claimant_payout"] == "0"
+    assert rec["challenger_payout"] == "0"
 
 
 def test_resolve_inconclusive_does_not_settle(direct_vm, direct_deploy, direct_alice, direct_bob):
