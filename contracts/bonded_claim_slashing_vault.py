@@ -580,10 +580,19 @@ class BondedClaimSlashingVault(gl.Contract):
     def _normalize_resolution(self, raw) -> dict:
         data = self._as_dict(raw)
         verdict = self._normalize_verdict(str(data.get("verdict", VERDICT_INCONCLUSIVE)))
-        ok = bool(data.get("ok", False)) and (verdict == VERDICT_UPHELD or verdict == VERDICT_REFUTED)
         reason = self._compact(str(data.get("reason", "")), 700)
-        if verdict != VERDICT_UPHELD and verdict != VERDICT_REFUTED:
-            ok = False
+        is_conclusive = verdict == VERDICT_UPHELD or verdict == VERDICT_REFUTED
+        # Settlement (_settle_upheld/_settle_refuted) branches on `verdict` alone, so a
+        # conclusive verdict paired with ok=false would let funds move on a judgment the
+        # model itself flagged as not confident. Enforce a single invariant instead of
+        # trusting the model's `ok` independently of its own verdict: a conclusive verdict
+        # is only conclusive if the model also said ok=true; otherwise treat it as
+        # INCONCLUSIVE so no slashing/release happens on a self-contradictory result.
+        if is_conclusive and not bool(data.get("ok", False)):
+            verdict = VERDICT_INCONCLUSIVE
+            is_conclusive = False
+            reason = "Downgraded to INCONCLUSIVE: model reported ok=false with a conclusive verdict"
+        ok = is_conclusive
         if len(reason) == 0:
             reason = "No usable reason supplied"
         return {

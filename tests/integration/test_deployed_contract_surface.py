@@ -5,7 +5,7 @@ from gltest.assertions import tx_execution_failed, tx_execution_succeeded
 
 
 CONTRACT = "BondedClaimSlashingVault"
-DEPLOYED_ADDRESS = "0x9e32D760c5940D259ffF8a4e257C890279767451"
+DEPLOYED_ADDRESS = "0xd7Ae325d6e45891AEE581a532E80757496b0109E"
 ZERO = "0x0000000000000000000000000000000000000000"
 GEN = 10**18
 
@@ -70,67 +70,67 @@ def test_deployed_contract_write_surface(default_account, accounts):
     base = claim_base(contract)
 
     register_tx = contract.register_claim(args=register_args()).transact(
-        value=GEN, transaction_context=mock_context()
+        value=GEN, wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_succeeded(register_tx)
 
     challenge_tx = challenger_contract.challenge_claim(args=[base] + challenge_args()).transact(
-        value=GEN // 5, transaction_context=mock_context()
+        value=GEN // 5, wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_succeeded(challenge_tx)
 
     evidence_tx = contract.submit_evidence(args=evidence_args(base)).transact(
-        transaction_context=mock_context()
+        wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_succeeded(evidence_tx)
 
     resolve_tx = contract.resolve_challenge(args=[base]).transact(
-        transaction_context=mock_context("UPHELD", True)
+        wait_interval=8000, wait_retries=90, transaction_context=mock_context("UPHELD", True)
     )
     assert tx_execution_succeeded(resolve_tx)
 
     callback_tx = contract.send_callback(args=[base]).transact(
-        transaction_context=mock_context()
+        wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_failed(callback_tx)
 
     withdraw_id = base + 1
     withdraw_claim_tx = contract.register_claim(args=register_args()).transact(
-        value=GEN, transaction_context=mock_context()
+        value=GEN, wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_succeeded(withdraw_claim_tx)
     withdraw_tx = contract.withdraw_unchallenged(args=[withdraw_id]).transact(
-        transaction_context=mock_context(now="2026-07-27T15:00:01Z")
+        wait_interval=8000, wait_retries=90, transaction_context=mock_context(now="2026-07-27T15:00:01Z")
     )
     assert tx_execution_succeeded(withdraw_tx)
 
     cancel_id = base + 2
     cancel_claim_tx = contract.register_claim(args=register_args()).transact(
-        value=GEN, transaction_context=mock_context()
+        value=GEN, wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_succeeded(cancel_claim_tx)
     cancel_tx = contract.cancel_unchallenged(args=[cancel_id]).transact(
-        transaction_context=mock_context()
+        wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_succeeded(cancel_tx)
 
     timeout_id = base + 3
     timeout_claim_tx = contract.register_claim(args=register_args()).transact(
-        value=GEN, transaction_context=mock_context()
+        value=GEN, wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_succeeded(timeout_claim_tx)
     timeout_challenge_tx = challenger_contract.challenge_claim(args=[timeout_id] + challenge_args()).transact(
-        value=GEN // 5, transaction_context=mock_context()
+        value=GEN // 5, wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_succeeded(timeout_challenge_tx)
 
     bad_evidence_tx = contract.submit_evidence(args=[timeout_id, "BAD", "{}", ""]).transact(
-        transaction_context=mock_context()
+        wait_interval=8000, wait_retries=90, transaction_context=mock_context()
     )
     assert tx_execution_failed(bad_evidence_tx)
 
     timeout_tx = contract.timeout_unresolved(args=[timeout_id]).transact(
-        transaction_context=mock_context(now="2026-07-27T18:00:01Z")
+        wait_interval=8000, wait_retries=90, transaction_context=mock_context(now="2026-07-27T18:00:01Z")
     )
     assert tx_execution_succeeded(timeout_tx)
 

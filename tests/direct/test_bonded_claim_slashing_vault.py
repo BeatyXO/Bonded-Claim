@@ -278,6 +278,37 @@ def test_resolve_inconclusive_does_not_settle(direct_vm, direct_deploy, direct_a
     assert rec["verdict"] == "INCONCLUSIVE"
 
 
+def test_upheld_with_ok_false_downgrades_to_inconclusive(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract = deploy(direct_deploy, direct_vm, direct_alice)
+    claim_id = register_default(contract, direct_vm, direct_alice)
+    challenge_default(contract, direct_vm, claim_id, direct_bob)
+    submit_default(contract, direct_vm, claim_id, direct_bob)
+    mock_verdict(direct_vm, "UPHELD", ok=False)
+    contract.resolve_challenge(claim_id)
+    rec = claim(contract, claim_id)
+    assert rec["settled"] is False
+    assert rec["verdict"] == "INCONCLUSIVE"
+    assert rec["claimant_payout"] == "0"
+    assert rec["challenger_payout"] == "0"
+    resolution = json.loads(contract.resolution_of(claim_id))
+    assert resolution["ok"] is False
+    assert resolution["verdict"] == "INCONCLUSIVE"
+
+
+def test_refuted_with_ok_false_downgrades_to_inconclusive(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract = deploy(direct_deploy, direct_vm, direct_alice)
+    claim_id = register_default(contract, direct_vm, direct_alice)
+    challenge_default(contract, direct_vm, claim_id, direct_bob)
+    submit_default(contract, direct_vm, claim_id, direct_bob)
+    mock_verdict(direct_vm, "REFUTED", ok=False)
+    contract.resolve_challenge(claim_id)
+    rec = claim(contract, claim_id)
+    assert rec["settled"] is False
+    assert rec["verdict"] == "INCONCLUSIVE"
+    assert rec["challenger_payout"] == "0"
+    assert rec["treasury_payout"] == "0"
+
+
 def test_external_failure_does_not_slash(direct_vm, direct_deploy, direct_alice, direct_bob):
     contract = deploy(direct_deploy, direct_vm, direct_alice)
     claim_id = register_default(contract, direct_vm, direct_alice)

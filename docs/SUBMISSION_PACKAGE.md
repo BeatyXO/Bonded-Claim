@@ -6,13 +6,19 @@ Bonded Claim Slashing Vault is a standalone GenLayer Intelligent Contract primit
 
 This hardened resubmission adds contract-side acquisition of public source material inside `resolve_challenge`. Public URL evidence is fetched before validator adjudication, so settlement no longer depends on party-supplied text or unread URL strings.
 
+### Fix in this resubmission (Joaquin, Aug 4 2026)
+
+`_normalize_resolution` could previously store a resolution with a conclusive verdict (`UPHELD`/`REFUTED`) while `ok=false`, even though `_settle_upheld`/`_settle_refuted` branch on the verdict alone and would still move funds. `ok` and `verdict` are now a single invariant: a conclusive verdict is only kept as conclusive when the model also reported `ok=true`; otherwise the verdict is downgraded to `INCONCLUSIVE` (with `ok=false`) and no settlement occurs. See `_normalize_resolution` in [contracts/bonded_claim_slashing_vault.py](../contracts/bonded_claim_slashing_vault.py). Covered by `test_upheld_with_ok_false_downgrades_to_inconclusive` and `test_refuted_with_ok_false_downgrades_to_inconclusive` in [tests/direct/test_bonded_claim_slashing_vault.py](../tests/direct/test_bonded_claim_slashing_vault.py).
+
 ## StudioNet Deployment
 
-- Contract address: `0x9e32D760c5940D259ffF8a4e257C890279767451`
-- Deployment transaction: `0xc500b3c275b6387f97dbb3800b9966c166ade332b5139e8fe61c00d9510fccb2`
+- Contract address: `0xd7Ae325d6e45891AEE581a532E80757496b0109E`
+- Deployment transaction: `0xe232787c6ec6065e850eb5fd0f53ba66ba76b89c6281bc6dae0d2595cd100e92`
 - Receipt status: `ACCEPTED`
 - Deployment result: `MAJORITY_AGREE`
-- Validator votes: 5 agree, 0 disagree
+- Validator votes: 5 rounds voted (3 `AGREE`, 2 `IDLE`), quorum reached in round 0
+
+Prior (stale) deployment, kept for reference only — does not contain the `ok`/verdict fix and should not be used: address `0x9e32D760c5940D259ffF8a4e257C890279767451`, tx `0xc500b3c275b6387f97dbb3800b9966c166ade332b5139e8fe61c00d9510fccb2`.
 
 ## GenLayer Consensus Use
 
@@ -95,7 +101,7 @@ Direct test suite:
 
 ```text
 pytest tests/direct/ -q
-33 passed
+35 passed
 ```
 
 StudioNet exact deployed-address test:
@@ -105,7 +111,7 @@ gltest tests/integration/test_deployed_contract_surface.py -v -s --network studi
 1 passed
 ```
 
-The exact deployed-address test wrote against `0x9e32D760c5940D259ffF8a4e257C890279767451` and exercised:
+The exact deployed-address test wrote against `0xd7Ae325d6e45891AEE581a532E80757496b0109E` and exercised:
 
 - successful claim registration with native GEN value
 - successful challenge from a different account with challenge bond
@@ -124,19 +130,21 @@ Fresh full-surface StudioNet test note: the fresh deployment path reached `resol
 
 ```json
 {
-  "next_claim_id": "5",
-  "open_claims": "2",
+  "next_claim_id": "8",
+  "open_claims": "4",
   "challenged_claims": "0",
-  "resolved_claims": "4",
-  "cancelled_claims": "1",
-  "total_bonded": "4400000000000000000",
+  "resolved_claims": "7",
+  "cancelled_claims": "2",
+  "total_bonded": "7600000000000000000",
   "total_slashed": "0",
-  "total_returned": "4400000000000000000",
+  "total_returned": "7600000000000000000",
   "total_challenger_rewards": "0",
   "balance": "0",
   "treasury": "0x9dbe27C8e1884AD3a7Be2FC606dFb40a9eEb1dfE"
 }
 ```
+
+Read live with `genlayer call 0xd7Ae325d6e45891AEE581a532E80757496b0109E stats`.
 
 ## Why It Is Reusable
 
