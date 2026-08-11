@@ -407,6 +407,7 @@ def test_withdraw_unchallenged_after_window(direct_vm, direct_deploy, direct_ali
     rec = claim(contract, claim_id)
     assert rec["status"] == "EXPIRED"
     assert rec["claimant_payout"] == str(GEN)
+    assert json.loads(contract.stats())["open_claims"] == "0"
 
 
 def test_withdraw_unchallenged_requires_window_end(direct_vm, direct_deploy, direct_alice):
@@ -425,6 +426,7 @@ def test_cancel_unchallenged_returns_bond(direct_vm, direct_deploy, direct_alice
     rec = claim(contract, claim_id)
     assert rec["status"] == "CANCELLED"
     assert rec["claimant_payout"] == str(GEN)
+    assert json.loads(contract.stats())["open_claims"] == "0"
 
 
 def test_cancel_challenged_rejected(direct_vm, direct_deploy, direct_alice, direct_bob):

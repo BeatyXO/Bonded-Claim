@@ -5,7 +5,7 @@ from gltest.assertions import tx_execution_failed, tx_execution_succeeded
 
 
 CONTRACT = "BondedClaimSlashingVault"
-DEPLOYED_ADDRESS = "0xd7Ae325d6e45891AEE581a532E80757496b0109E"
+DEPLOYED_ADDRESS = "0x0e02dAd35b39349F672CFBF44FF5ADE1B69b6aE6"
 ZERO = "0x0000000000000000000000000000000000000000"
 GEN = 10**18
 
@@ -141,3 +141,4 @@ def test_deployed_contract_write_surface(default_account, accounts):
     assert json.loads(contract.resolution_of(args=[base]).call())["verdict"] == "UPHELD"
     stats = json.loads(contract.stats(args=[]).call())
     assert int(stats["next_claim_id"]) >= base + 4
+    assert stats["open_claims"] == "0"

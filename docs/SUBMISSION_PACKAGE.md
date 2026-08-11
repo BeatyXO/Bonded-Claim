@@ -12,13 +12,13 @@ This hardened resubmission adds contract-side acquisition of public source mater
 
 ## StudioNet Deployment
 
-- Contract address: `0xd7Ae325d6e45891AEE581a532E80757496b0109E`
-- Deployment transaction: `0xe232787c6ec6065e850eb5fd0f53ba66ba76b89c6281bc6dae0d2595cd100e92`
+- Contract address: `0x0e02dAd35b39349F672CFBF44FF5ADE1B69b6aE6`
+- Deployment transaction: `0x9f9985f33acdcb6c95e4f109fea1a8b8427d7508bdf1412bb42897e6bee07b1f`
 - Receipt status: `ACCEPTED`
 - Deployment result: `MAJORITY_AGREE`
 - Validator votes: 5 rounds voted (3 `AGREE`, 2 `IDLE`), quorum reached in round 0
 
-Prior (stale) deployment, kept for reference only — does not contain the `ok`/verdict fix and should not be used: address `0x9e32D760c5940D259ffF8a4e257C890279767451`, tx `0xc500b3c275b6387f97dbb3800b9966c166ade332b5139e8fe61c00d9510fccb2`.
+This deployment includes both the evidence hardening and the OPEN-counter lifecycle fix. Do not submit older deployments.
 
 ## GenLayer Consensus Use
 
@@ -111,7 +111,7 @@ gltest tests/integration/test_deployed_contract_surface.py -v -s --network studi
 1 passed
 ```
 
-The exact deployed-address test wrote against `0xd7Ae325d6e45891AEE581a532E80757496b0109E` and exercised:
+The exact deployed-address test wrote against `0x0e02dAd35b39349F672CFBF44FF5ADE1B69b6aE6` and exercised:
 
 - successful claim registration with native GEN value
 - successful challenge from a different account with challenge bond
@@ -124,7 +124,7 @@ The exact deployed-address test wrote against `0xd7Ae325d6e45891AEE581a532E80757
 - successful unresolved timeout settlement
 - reads from all view methods
 
-Fresh full-surface StudioNet test note: the fresh deployment path reached `resolve_challenge`, then one RPC polling request to `studio.genlayer.com` timed out while waiting for the transaction receipt. The exact deployed-address StudioNet test passed afterward and is the measured write-surface proof for this submitted CA.
+Fresh full-surface StudioNet test passed against the corrected deployment and is the measured write-surface proof for this submitted CA.
 
 ## Current Deployed Stats
 
@@ -144,7 +144,7 @@ Fresh full-surface StudioNet test note: the fresh deployment path reached `resol
 }
 ```
 
-Read live with `genlayer call 0xd7Ae325d6e45891AEE581a532E80757496b0109E stats`.
+Read live with `genlayer call 0x0e02dAd35b39349F672CFBF44FF5ADE1B69b6aE6 stats`.
 
 ## Why It Is Reusable
 

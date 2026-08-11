@@ -6,14 +6,14 @@ This is contract-only. No frontend belongs in this Intelligent Contract submissi
 
 ## Deployed Contract
 
-- StudioNet contract: `0x9e32D760c5940D259ffF8a4e257C890279767451`
-- Deployment tx: `0xc500b3c275b6387f97dbb3800b9966c166ade332b5139e8fe61c00d9510fccb2`
+- StudioNet contract: `0x0e02dAd35b39349F672CFBF44FF5ADE1B69b6aE6`
+- Deployment tx: `0x9f9985f33acdcb6c95e4f109fea1a8b8427d7508bdf1412bb42897e6bee07b1f`
 - Receipt status: `ACCEPTED`
 - Deployment result: `MAJORITY_AGREE`
 - Consensus: 5/5 validators agreed
 - Constructor: zero treasury address was supplied, so the contract set the deployer as treasury.
 
-This is the hardened resubmission deployment. The old rejected deployment is not the submitted contract.
+This is the corrected resubmission deployment. It includes the OPEN-counter lifecycle fix. Older deployments are not the submitted contract.
 
 ## What It Does
 
@@ -67,11 +67,11 @@ View methods:
 
 - `genvm-lint check contracts\bonded_claim_slashing_vault.py --json`: passed, 15 methods, 8 writes, 7 views
 - `genvm-lint check examples\claim_registry_consumer.py --json`: passed, 3 methods
-- `pytest tests/direct/ -q`: `33 passed`
-- `gltest tests/integration/test_deployed_contract_surface.py -v -s --network studionet`: `1 passed` against the hardened CA
-- `genlayer.cmd call 0x9e32D760c5940D259ffF8a4e257C890279767451 stats`: returned current deployed stats after write testing
+- `pytest tests/direct/ -q`: `35 passed`
+- `gltest tests/integration/test_deployed_contract_surface.py -v -s --network studionet`: `1 passed` against the corrected CA
+- Live write testing against `0x0e02dAd35b39349F672CFBF44FF5ADE1B69b6aE6`: `open_claims` ended at `0` after resolution, withdrawal, cancellation, and timeout
 
-The exact deployed-address test wrote against `0x9e32D760c5940D259ffF8a4e257C890279767451` and exercised:
+The exact deployed-address test wrote against `0x0e02dAd35b39349F672CFBF44FF5ADE1B69b6aE6` and exercised:
 
 - successful claim registration with native GEN value
 - successful challenge from a different account with challenge bond
@@ -84,14 +84,14 @@ The exact deployed-address test wrote against `0x9e32D760c5940D259ffF8a4e257C890
 - successful unresolved timeout settlement
 - reads from all view methods
 
-The fresh full-surface StudioNet test deployed and reached the nondeterministic resolve stage, but one RPC polling request to `studio.genlayer.com` timed out while waiting for the resolve receipt. The exact deployed-address test completed successfully afterward and is the measured proof for this submitted CA.
+The fresh full-surface StudioNet test completed successfully and is the measured proof for this submitted CA.
 
 Current deployed stats after the exact-address write test:
 
 ```json
 {
   "next_claim_id": "5",
-  "open_claims": "2",
+  "open_claims": "0",
   "challenged_claims": "0",
   "resolved_claims": "4",
   "cancelled_claims": "1",

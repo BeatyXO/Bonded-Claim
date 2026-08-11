@@ -649,6 +649,7 @@ class BondedClaimSlashingVault(gl.Contract):
         self.total_returned = self.total_returned + challenge_bond + treasury_amount
 
     def _mark_settled(self, claim_id: u256, rec: dict, verdict: str, reason: str) -> None:
+        was_open = rec["status"] == STATUS_OPEN
         was_challenged = rec["status"] == STATUS_CHALLENGED
         rec["status"] = STATUS_RESOLVED
         rec["verdict"] = verdict
@@ -656,6 +657,8 @@ class BondedClaimSlashingVault(gl.Contract):
         rec["settled"] = True
         rec["last_resolved_at"] = self._now_iso()
         self._write_claim(claim_id, rec)
+        if was_open and self.open_claims > u256(0):
+            self.open_claims = self.open_claims - u256(1)
         if was_challenged and self.challenged_claims > u256(0):
             self.challenged_claims = self.challenged_claims - u256(1)
         self.resolved_claims = self.resolved_claims + u256(1)
